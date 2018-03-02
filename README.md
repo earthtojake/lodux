@@ -16,14 +16,23 @@ To connect a component to a lodux store, you must define a ```mapDataToProps``` 
 
 ```
 {
-  path: ['todo', 'items', 3] | 'todo.items.3' // accesses {todo: items[3]}
-  cmd: {$set: value} // sets {todo: items[3]} to "value"
+  path: the object path to modify: this can be anarray of object properties or a string path separated by "."
+  cmd: a CRUD command to apply to the object at the specified path - commands follow immutability-helper syntax:       https://github.com/kolodny/immutability-helper
 }
 ```
 
-Commands are flexible and follow immutability-helper syntax: https://github.com/kolodny/immutability-helper
+Below is an example of an act object:
 
-##Example
+```
+{
+  path: ['todo', 'items', 3] || 'todo.items.3' // accesses {todo: items[3]}
+  cmd: {$set: "hello world"} // sets {todo: items[3]} to "hello world"
+}
+```
+
+This would set the item at path {todo: items[3]} to "hello world".
+
+### Example
 
 The scaffold of an example implementation is below:
 

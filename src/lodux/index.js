@@ -114,8 +114,11 @@ class Wrapper extends Component {
     init(original);
   }
   render() {
-    const {RawComponent, init: _, ...props} = this.props;
-    return <RawComponent {...props} />;
+    const {instance, RawComponent, init: _, ...props} = this.props;
+    if (!instance) {
+      return null;
+    }
+    return <RawComponent instance={instance} {...props} />;
   }
 }
 

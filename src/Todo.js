@@ -35,10 +35,10 @@ class Todo extends Component {
   }
 
   render() {
-    const {id, data} = this.props;
+    const {instance, data} = this.props;
     return (
       <div>
-        <p>{id}</p>
+        <p>Instance {instance} of Todo</p>
         <ul>
           {data.items.map((item, i) =>
             <li key={i}>

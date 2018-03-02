@@ -79,6 +79,11 @@ function wrapMapDispatchToProps(mapActToProps, RawComponent) {
 
     const {instance} = own_props;
     const key = instance;
+
+    if (!instance) {
+      console.error("instance prop was not passed into",RawComponent.name);
+    }
+
     const container_name = RawComponent.name;
 
     const act = action_def => {

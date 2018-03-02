@@ -1,14 +1,30 @@
 import React, { Component } from 'react';
 import {connect} from 'react-redux';
 import update from 'immutability-helper';
-import {get} from 'lodash';
+import {get, isEqual} from 'lodash';
 
 const INIT = 'INIT_DATA';
-const UPDATE = 'UPDATE';
+const UPDATE_ONE = 'UPDATE_ONE';
+const UPDATE_MANY = 'UPDATE_MANY';
+const UPDATE_ALL = 'UPDATE_ALL';
 
-const updateData = (action) => {
+const updateOne = (action) => {
   return {
-    type: UPDATE,
+    type: UPDATE_ONE,
+    ...action
+  }
+}
+
+const updateAll = (action) => {
+  return {
+    type: UPDATE_ALL,
+    ...action
+  }
+}
+
+const updateMany = (action) => {
+  return {
+    type: UPDATE_MANY,
     ...action
   }
 }
@@ -38,15 +54,29 @@ function updateWithPath(state, path, action) {
 }
 
 const ContainerReducer = function(state = {}, action) {
+  let action_path = action.path || [];
+    if (typeof action_path === 'string') {
+      action_path = action_path.split('.');
+    }
   switch (action.type) {
-    case UPDATE:
-      let action_path = action.path || [];
-      if (typeof action_path === 'string') {
-        action_path = action_path.split('.');
-      }
+    case UPDATE_ONE:
       const path = [action.container, action.key, ...action_path];
-      console.log(action);
       return updateWithPath(state, path, action.cmd);
+    case UPDATE_ALL:
+      const instances = get(state, [action.container]);
+      return Object.keys(instances).reduce((s, key) => {
+        const path = [action.container, key, ...action_path];
+        return updateWithPath(s, path, action.cmd);
+      }, state);
+    case UPDATE_MANY:
+      return action.keys.reduce((s, key) => {
+        const path = [action.container, key, ...action_path];
+        if (get(s, path)) {
+          return updateWithPath(s, path, action.cmd);
+        } else {
+          return s;
+        }
+      }, state);
     case INIT:
       return {
         ...state,
@@ -60,16 +90,40 @@ const ContainerReducer = function(state = {}, action) {
   }
 }
 
+const stripUndefined = (obj) => {
+  Object.keys(obj).forEach(key => {
+    if (!obj[key]) {
+      delete obj[key];
+    }
+  });
+  return obj;
+}
+
 function wrapMapStateToProps(mapStateToProps, RawComponent) {
   return (state, own_props) => {
-    const {data, props} = mapStateToProps(state, own_props);
+
+    let inject_props = [];
+
+    const conget = (_container, _instance) => {
+      const cname = _container.cname || _container.name;
+      const container_props = _instance ? get(state, ['ContainerReducer', cname, _instance]) : get(state, ['ContainerReducer', cname]);
+      if (container_props) {
+        return container_props;
+      }
+    }
+
+    const original = stripUndefined(mapStateToProps(state, own_props, function() {}));
+    const original_with_conget = stripUndefined(mapStateToProps(state, own_props, conget));
+
     const {instance} = own_props;
+    const props = get(state, ['ContainerReducer', RawComponent.name, instance]) || original;
+
     return {
       key: instance,
-      data: get(state, ['ContainerReducer', RawComponent.name, instance]) || data,
-      original: data,
+      original,
       RawComponent,
-      ...props
+      ...original_with_conget,
+      ...props,
     }
   }
 }
@@ -80,45 +134,58 @@ function wrapMapDispatchToProps(mapActToProps, RawComponent) {
     const {instance} = own_props;
     const key = instance;
 
-    if (!instance) {
-      console.error("instance prop was not passed into",RawComponent.name);
-    }
-
     const container_name = RawComponent.name;
 
     const act = action_def => {
       const wrapped_def = {container: container_name, key, ...action_def};
-      dispatch(updateData(wrapped_def));
+      dispatch(updateOne(wrapped_def));
     }
 
     const contact = (other_container, other_key, action_def) => {
-      const wrapped_def = {container: other_container.name, key: other_key, ...action_def};
-      dispatch(updateData(wrapped_def));
+      const cname = other_container.cname || other_container.name;
+      if (other_key === "*") {
+        const wrapped_def = {container: cname, ...action_def};
+        dispatch(updateAll(wrapped_def));
+      } else if (Array.isArray(other_key)) {
+        const wrapped_def = {container: cname, keys: other_key, ...action_def};
+        dispatch(updateMany(wrapped_def));
+      } else {
+        const wrapped_def = {container: cname, key: other_key, ...action_def};
+        dispatch(updateOne(wrapped_def));
+      }
     }
 
-    const actors = mapActToProps(act, contact, own_props);
+    const actors = mapActToProps(own_props, act, contact);
     
     return {
       init: (_data) => {
         dispatch(initData(container_name, key, _data));
       },
-      ...actors
+      act: actors
     }
 
   }
 }
 
 class Wrapper extends Component {
-  componentDidMount() {
+
+  constructor(props) {
+    super(props);
     const {init, RawComponent, original} = this.props;
     init(original);
   }
+
+  shouldComponentUpdate(nextProps, nextState) {
+    return !isEqual(nextProps, this.props);
+  }
+
   render() {
-    const {instance, RawComponent, init: _, ...props} = this.props;
+    const {instance, RawComponent, init: _0, original: _1, act, ...props} = this.props;
     if (!instance) {
+      console.error("instance prop was not passed into", RawComponent.name);
       return null;
     }
-    return <RawComponent instance={instance} {...props} />;
+    return <RawComponent instance={instance} {...act} {...props} />;
   }
 }
 
@@ -126,7 +193,9 @@ function conduct(mapStateToProps, mapActToProps) {
   return function(RawComponent) {
     const wrappedMapStateToProps = wrapMapStateToProps(mapStateToProps, RawComponent);
     const wrappedMapDispatchToProps = wrapMapDispatchToProps(mapActToProps, RawComponent);
-    return connect(wrappedMapStateToProps, wrappedMapDispatchToProps)(Wrapper);
+    const WrappedComponent = connect(wrappedMapStateToProps, wrappedMapDispatchToProps)(Wrapper);
+    WrappedComponent.cname = RawComponent.name;
+    return WrappedComponent;
   }
 }
   

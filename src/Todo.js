@@ -35,12 +35,12 @@ class Todo extends Component {
   }
 
   render() {
-    const {instance, data} = this.props;
+    const {instance, items} = this.props;
     return (
       <div>
         <p>Instance {instance} of Todo</p>
         <ul>
-          {data.items.map((item, i) =>
+          {items.map((item, i) =>
             <li key={i}>
               <input type="text" value={item} onChange={(e) => this.changeItem(e, i)}/>
               &nbsp;
@@ -59,40 +59,37 @@ class Todo extends Component {
 // returns data to be initialized for this container and regular props from state
 // path = ContainerReducer.${container.name}.${instance}
 const mapStateToProps = (state, own_props) => {
-  const todoLists = state.ContainerReducer.Todo;
+  const {items = []} = own_props;
   return {
-    data: {
-      items: ["one", "two", "three"]
-    },
-    props: {
-      // now we can easily get the state of every todo list in every component, cleanly indexed in a store
-      todoLists
-    }
+    items
   };
 }
 
 // CRUD wrapper functions
-const push = (item) => ({$push: [item]});
-const remove = (index) => ({$splice: [[index, 1]]});
-const set = (value) => ({$set: value});
+export const empty = {path: 'items', cmd: {$set: []}};
+export const addItem = (item) => ({path: 'items', cmd: {$push: [item]}});
+export const removeItem = (index) => ({path: 'items', cmd: {$splice: [[index, 1]]}});
+export const setItem = (index, value) => ({path: `items.${index}`, cmd: set(value)});
 
 // act = dispatch action on self
 // contact = dispatch action on an instance of another container
-const mapActToProps = (act, contact, own_props) => {
+const mapActToProps = (own_props, act, contact) => {
   return {
     addItem: (item) => {
-      act( {path: 'items', cmd: push(item) });
+      act( addItem(item) );
     },
     removeItem: (index) => {
-      act( {path: 'items', cmd: remove(index) });
+      act( removeItem(index) );
     },
     setItem: (index, value) => {
-      act( {path: `items.${index}`, cmd: set(value)} );
+      act( setItem(index, value) );
+    },
+    empty: () => {
+      act( empty );
     },
     addToAll: (item) => {
-      // talk to ANY container store by passing in the container component and key
-      contact( Todo, 'shopping_list', {path: 'items', cmd: push(item)} );
-      contact( Todo, 'homework', {path: 'items', cmd: push(item)} );
+      // dispatch action on two instances of Todo
+      contact( Todo, ['shopping_list', 'homework'], addItem(item) );
     }
   }
 }

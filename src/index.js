@@ -2,12 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Provider } from 'react-redux';
 import { createStore, applyMiddleware, combineReducers } from 'redux';
-import { LodashReducer } from './lodux';
+import { ContainerReducer } from './lodux';
 
 import App from './app';
 
 const rootReducer = combineReducers({
-  LodashReducer
+  ContainerReducer
 });
 
 const store = createStore(

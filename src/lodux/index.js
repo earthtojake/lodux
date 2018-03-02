@@ -13,11 +13,12 @@ const updateData = (action) => {
   }
 }
 
-const initData = (key, data) => {
+const initData = (container, key, data) => {
   return {
     type: INIT,
-    data,
-    key
+    container,
+    key,
+    data
   }
 }
 
@@ -36,21 +37,21 @@ function updateWithPath(state, path, action) {
   return update(state, pathObj);
 }
 
-const LodashReducer = function(state = {}, action) {
-  let action_path = action.path || [];
-  if (typeof action_path === 'string') {
-    action_path = action_path.split('.');
-  }
+const ContainerReducer = function(state = {}, action) {
   switch (action.type) {
     case UPDATE:
-      const path = [action.key, 'data', ...action_path];
+      let action_path = action.path || [];
+      if (typeof action_path === 'string') {
+        action_path = action_path.split('.');
+      }
+      const path = [action.container, action.key, ...action_path];
       return updateWithPath(state, path, action.cmd);
     case INIT:
       return {
         ...state,
-        [action.key]: {
-          key: action.key,
-          data: action.data
+        [action.container]: {
+          ...state[action.container],
+          [action.key]: action.data,
         }
       }
     default:
@@ -60,42 +61,39 @@ const LodashReducer = function(state = {}, action) {
 
 function wrapMapStateToProps(mapDataToProps, RawComponent) {
   return (state, own_props) => {
-    let data = mapDataToProps(own_props) || {};
-    const key = genKey(RawComponent, own_props);
-    if (state.LodashReducer && state.LodashReducer[key]) {
-      data = state.LodashReducer[key].data;
-    }
+    let {key, data} = mapDataToProps(own_props);
     return {
-      data,
+      key,
+      data: get(state, ['ContainerReducer', RawComponent.name, key]) || data,
+      original: data,
       RawComponent
     }
   }
 }
 
-const genKey = (component, own_props) => {
-  const obj = {
-    ...own_props,
-    component: component.name
-  }
-  return JSON.stringify(obj);
-}
-
 function wrapMapDispatchToProps(mapDataToProps, mapActToProps, RawComponent) {
   return (dispatch, own_props) => {
-    const data = mapDataToProps(own_props) || {};
-    const key = genKey(RawComponent, own_props);
-    const dispact = action_def => {
-      const wrapped_def = {key, ...action_def};
+
+    const {key} = mapDataToProps(own_props);
+    const container_name = RawComponent.name;
+
+    const act = action_def => {
+      const wrapped_def = {container: container_name, key, ...action_def};
       dispatch(updateData(wrapped_def));
     }
 
-    const dispatchers = mapActToProps(dispact, own_props);
+    const contact = (other_container, other_key, action_def) => {
+      const wrapped_def = {container: other_container.name, key: other_key, ...action_def};
+      dispatch(updateData(wrapped_def));
+    }
+
+    const actors = mapActToProps(act, contact, own_props);
     
     return {
-      init: data => {
-        dispatch(initData(key, data));
+      init: (_data) => {
+        dispatch(initData(container_name, key, _data));
       },
-      ...dispatchers
+      ...actors
     }
 
   }
@@ -103,8 +101,8 @@ function wrapMapDispatchToProps(mapDataToProps, mapActToProps, RawComponent) {
 
 class Wrapper extends Component {
   componentDidMount() {
-    const {init, data} = this.props;
-    init(data);
+    const {init, RawComponent, original} = this.props;
+    init(original);
   }
   render() {
     const {RawComponent, init: _, ...props} = this.props;
@@ -112,7 +110,7 @@ class Wrapper extends Component {
   }
 }
 
-function connectWithLodux(mapDataToProps, mapActToProps) {
+function conduct(mapDataToProps, mapActToProps) {
   return function(RawComponent) {
     const wrappedMapStateToProps = wrapMapStateToProps(mapDataToProps, RawComponent);
     const wrappedMapDispatchToProps = wrapMapDispatchToProps(mapDataToProps, mapActToProps, RawComponent);
@@ -121,6 +119,6 @@ function connectWithLodux(mapDataToProps, mapActToProps) {
 }
   
 module.exports = {
-  connect: connectWithLodux,
-  LodashReducer
+  conduct,
+  ContainerReducer
 };

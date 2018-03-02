@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import {conduct} from './lodux';
+import {conduct} from './redact';
 
 class Todo extends Component {
 

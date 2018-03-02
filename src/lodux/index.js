@@ -45,6 +45,7 @@ const ContainerReducer = function(state = {}, action) {
         action_path = action_path.split('.');
       }
       const path = [action.container, action.key, ...action_path];
+      console.log(action);
       return updateWithPath(state, path, action.cmd);
     case INIT:
       return {
@@ -59,22 +60,25 @@ const ContainerReducer = function(state = {}, action) {
   }
 }
 
-function wrapMapStateToProps(mapDataToProps, RawComponent) {
+function wrapMapStateToProps(mapStateToProps, RawComponent) {
   return (state, own_props) => {
-    let {key, data} = mapDataToProps(own_props);
+    const {data, props} = mapStateToProps(state, own_props);
+    const {instance} = own_props;
     return {
-      key,
-      data: get(state, ['ContainerReducer', RawComponent.name, key]) || data,
+      key: instance,
+      data: get(state, ['ContainerReducer', RawComponent.name, instance]) || data,
       original: data,
-      RawComponent
+      RawComponent,
+      ...props
     }
   }
 }
 
-function wrapMapDispatchToProps(mapDataToProps, mapActToProps, RawComponent) {
+function wrapMapDispatchToProps(mapActToProps, RawComponent) {
   return (dispatch, own_props) => {
 
-    const {key} = mapDataToProps(own_props);
+    const {instance} = own_props;
+    const key = instance;
     const container_name = RawComponent.name;
 
     const act = action_def => {
@@ -110,10 +114,10 @@ class Wrapper extends Component {
   }
 }
 
-function conduct(mapDataToProps, mapActToProps) {
+function conduct(mapStateToProps, mapActToProps) {
   return function(RawComponent) {
-    const wrappedMapStateToProps = wrapMapStateToProps(mapDataToProps, RawComponent);
-    const wrappedMapDispatchToProps = wrapMapDispatchToProps(mapDataToProps, mapActToProps, RawComponent);
+    const wrappedMapStateToProps = wrapMapStateToProps(mapStateToProps, RawComponent);
+    const wrappedMapDispatchToProps = wrapMapDispatchToProps(mapActToProps, RawComponent);
     return connect(wrappedMapStateToProps, wrappedMapDispatchToProps)(Wrapper);
   }
 }

@@ -7,9 +7,9 @@ class App extends Component {
     const {data} = this.props;
     return (
       <div>
-        <Todo id="shopping_list"/>
+        <Todo instance="shopping_list"/>
         <br />
-        <Todo id="homework"/>
+        <Todo instance="homework"/>
       </div>
     );
   }

@@ -56,33 +56,45 @@ class Todo extends Component {
   }
 }
 
-const mapDataToProps = (own_props) => {
-  const {id} = own_props;
+// returns data to be initialized for this container and regular props from state
+// path = ContainerReducer.${container.name}.${instance}
+const mapStateToProps = (state, own_props) => {
+  const todoLists = state.ContainerReducer.Todo;
   return {
-    key: id,
     data: {
       items: ["one", "two", "three"]
+    },
+    props: {
+      // now we can easily get the state of every todo list in every component, cleanly indexed in a store
+      todoLists
     }
   };
 }
 
+// CRUD wrapper functions
+const push = (item) => ({$push: [item]});
+const remove = (index) => ({$splice: [[index, 1]]});
+const set = (value) => ({$set: value});
+
+// act = dispatch action on self
+// contact = dispatch action on an instance of another container
 const mapActToProps = (act, contact, own_props) => {
   return {
     addItem: (item) => {
-      act( {path: 'items', cmd: {$push: [item]}} );
+      act( {path: 'items', cmd: push(item) });
     },
     removeItem: (index) => {
-      act( {path: 'items', cmd: {$splice: [[index, 1]]} });
+      act( {path: 'items', cmd: remove(index) });
     },
     setItem: (index, value) => {
-      act( {path: `items.${index}`, cmd: {$set: value}} );
+      act( {path: `items.${index}`, cmd: set(value)} );
     },
     addToAll: (item) => {
-      // talk to any container store by passing in the container and key
-      contact( Todo, 'shopping_list', {path: 'items', cmd: {$push: [item]}} );
-      contact( Todo, 'homework', {path: 'items', cmd: {$push: [item]}} );
+      // talk to ANY container store by passing in the container component and key
+      contact( Todo, 'shopping_list', {path: 'items', cmd: push(item)} );
+      contact( Todo, 'homework', {path: 'items', cmd: push(item)} );
     }
   }
 }
 
-export default conduct(mapDataToProps, mapActToProps)(Todo);
+export default conduct(mapStateToProps, mapActToProps)(Todo);

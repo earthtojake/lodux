@@ -66,10 +66,31 @@ const mapStateToProps = (state, own_props) => {
 }
 
 // CRUD wrapper functions
-export const empty = {path: 'items', cmd: {$set: []}};
-export const addItem = (item) => ({path: 'items', cmd: {$push: [item]}});
-export const removeItem = (index) => ({path: 'items', cmd: {$splice: [[index, 1]]}});
-export const setItem = (index, value) => ({path: `items.${index}`, cmd: set(value)});
+export const empty = {
+  items: {
+    $set: []
+  }
+};
+
+export const addItem = (item) => ({
+  items: {
+    $push: [item]
+  }
+});
+
+export const removeItem = (index) => ({
+  items: {
+    $splice: [[index, 1]]
+  }
+});
+
+export const setItem = (index, value) => ({
+  items: {
+    [index]: {
+      $set: value
+    }
+  }
+});
 
 // act = dispatch action on self
 // contact = dispatch action on an instance of another container

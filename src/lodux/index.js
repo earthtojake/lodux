@@ -60,19 +60,32 @@ const ContainerReducer = function(state = {}, action) {
     }
   switch (action.type) {
     case UPDATE_ONE:
-      const path = [action.container, action.key, ...action_path];
-      return updateWithPath(state, path, action.cmd);
+      const pathObj = {
+        [action.container]: {
+          [action.key]: action.update
+        }
+      };
+      return update(state, pathObj);
     case UPDATE_ALL:
       const instances = get(state, [action.container]);
       return Object.keys(instances).reduce((s, key) => {
-        const path = [action.container, key, ...action_path];
-        return updateWithPath(s, path, action.cmd);
+        const pathObj = {
+          [action.container]: {
+            [key]: action.update
+          }
+        };
+        return update(s, pathObj);
       }, state);
     case UPDATE_MANY:
       return action.keys.reduce((s, key) => {
         const path = [action.container, key, ...action_path];
+        const pathObj = {
+          [action.container]: {
+            [key]: action.update
+          }
+        };
         if (get(s, path)) {
-          return updateWithPath(s, path, action.cmd);
+          return update(s, pathObj);
         } else {
           return s;
         }
@@ -137,20 +150,20 @@ function wrapMapDispatchToProps(mapActToProps, RawComponent) {
     const container_name = RawComponent.name;
 
     const act = action_def => {
-      const wrapped_def = {container: container_name, key, ...action_def};
+      const wrapped_def = {container: container_name, key, update: action_def};
       dispatch(updateOne(wrapped_def));
     }
 
     const contact = (other_container, other_key, action_def) => {
       const cname = other_container.cname || other_container.name;
       if (other_key === "*") {
-        const wrapped_def = {container: cname, ...action_def};
+        const wrapped_def = {container: cname, update: action_def};
         dispatch(updateAll(wrapped_def));
       } else if (Array.isArray(other_key)) {
-        const wrapped_def = {container: cname, keys: other_key, ...action_def};
+        const wrapped_def = {container: cname, keys: other_key, update: action_def};
         dispatch(updateMany(wrapped_def));
       } else {
-        const wrapped_def = {container: cname, key: other_key, ...action_def};
+        const wrapped_def = {container: cname, key: other_key, update: action_def};
         dispatch(updateOne(wrapped_def));
       }
     }

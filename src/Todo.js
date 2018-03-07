@@ -1,18 +1,13 @@
 import React, { Component } from 'react';
-import {conduct} from './redact';
+import {conduct} from '../redact';
 
 class Todo extends Component {
 
-  constructor(props) {
-    super(props);
-    this.state = {todo: ""};
-  }
-
   handleAddItem() {
-    const {addItem} = this.props;
-    if (this.state.todo !== "") {
-      addItem(this.state.todo);
-      this.setState({todo: ""});
+    const {input, addItem, setInput} = this.props;
+    if (input !== "") {
+      addItem(input);
+      setInput("");
     }
   }
 
@@ -21,36 +16,32 @@ class Todo extends Component {
     removeItem(index);
   }
 
-  changeItem(e, index) {
+  handleChangeItem(e, index) {
     const {setItem} = this.props;
     setItem(index, e.target.value);
   }
 
-  handleAddToAll() {
-    const {addToAll} = this.props;
-    if (this.state.todo !== "") {
-      addToAll(this.state.todo);
-      this.setState({todo: ""});
-    }
+  handleChangeInput(e) {
+    const {setInput} = this.props;
+    setInput(e.target.value);
   }
 
   render() {
-    const {instance, items} = this.props;
+    const {instance, items, input} = this.props;
     return (
       <div>
-        <p>Instance {instance} of Todo</p>
+        <h3>{instance}</h3>
         <ul>
           {items.map((item, i) =>
             <li key={i}>
-              <input type="text" value={item} onChange={(e) => this.changeItem(e, i)}/>
+              <input type="text" value={item} onChange={(e) => this.handleChangeItem(e, i)}/>
               &nbsp;
               <button onClick={() => this.handleRemoveItem(i)}>x</button>
             </li>
           )}
         </ul>
-        <input type="text" value={this.state.todo} onChange={(e) => this.setState({todo: e.target.value})} />
+        <input type="text" value={input} onChange={(e) => this.handleChangeInput(e)} />
         <button onClick={() => this.handleAddItem()}>Add</button>
-        <button onClick={() => this.handleAddToAll()}>Add to all</button>
       </div>
     );
   }
@@ -58,10 +49,11 @@ class Todo extends Component {
 
 // returns data to be initialized for this container and regular props from state
 // path = ContainerReducer.${container.name}.${instance}
-const mapStateToProps = (state, own_props) => {
+const mapStateToProps = (state, own_props, conget) => {
   const {items = []} = own_props;
   return {
-    items
+    items,
+    input: ""
   };
 }
 
@@ -92,26 +84,19 @@ export const setItem = (index, value) => ({
   }
 });
 
+export const setInput = (value) => ({
+  input: {$set: value}
+})
+
 // act = dispatch action on self
 // contact = dispatch action on an instance of another container
 const mapActToProps = (own_props, act, contact) => {
   return {
-    addItem: (item) => {
-      act( addItem(item) );
-    },
-    removeItem: (index) => {
-      act( removeItem(index) );
-    },
-    setItem: (index, value) => {
-      act( setItem(index, value) );
-    },
-    empty: () => {
-      act( empty );
-    },
-    addToAll: (item) => {
-      // dispatch action on two instances of Todo
-      contact( Todo, ['shopping_list', 'homework'], addItem(item) );
-    }
+    setInput: (value) => act( setInput(value) ),
+    addItem: (item) => act( addItem(item) ),
+    removeItem: (index) => act( removeItem(index) ),
+    setItem: (index, value) => act( setItem(index, value) ),
+    empty: () => act( empty )
   }
 }
 

@@ -8,11 +8,10 @@ class App extends Component {
     const {data} = this.props;
     return (
       <div>
-        <h2>Todos</h2>
+        <h1>Todos</h1>
         <Todo instance="shopping_list" items={['apples', 'pears', 'oranges']}/>
-        <br />
-        <Todo instance="homework" items={['math', 'physics']}/>
-        <br />
+        <Todo instance="homework" items={['math', 'physics', 'chemistry']}/>
+        <h1>Summary</h1>
         <Progress instance="todo_progress" />
       </div>
     );

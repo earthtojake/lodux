@@ -54,6 +54,7 @@ function updateWithPath(state, path, action) {
 }
 
 const ContainerReducer = function(state = {}, action) {
+
   let action_path = action.path || [];
     if (typeof action_path === 'string') {
       action_path = action_path.split('.');
@@ -117,16 +118,75 @@ function wrapMapStateToProps(mapStateToProps, RawComponent) {
 
     let inject_props = [];
 
-    const conget = (_container, _instance) => {
+    const conget = (_container, _instance, _path) => {
       const cname = _container.cname || _container.name;
-      const container_props = _instance ? get(state, ['ContainerReducer', cname, _instance]) : get(state, ['ContainerReducer', cname]);
-      if (container_props) {
-        return container_props;
+
+      let full_path = [cname];
+      if (_instance) {
+        full_path = [cname, _instance];
+        if (_path) {
+          full_path = [cname, _instance].concat(_path);
+        }
+      }
+
+      let container_props;
+      if (_instance) {
+        if (_instance === "*") {
+          container_props = get(state, ['ContainerReducer', cname]);
+          if (_path) {
+            let _container_props = {};
+            Object.keys(container_props).forEach(_inst => {
+              _container_props[_inst] = get(container_props[_inst], _path);
+            });
+            container_props = _container_props;
+          }
+        } else if (Array.isArray(_instance)) {
+          container_props = {} 
+          _instance.forEach(_inst => {
+            container_props[_inst] = _path ? get(state, ['ContainerReducer', cname, _inst].concat(_path)) : get(state, ['ContainerReducer', cname, _inst]);
+            if (container_props[_inst] === undefined) {
+              console.error(`${cname}.${_inst} is not defined`);
+            }
+          });
+        } else {
+          container_props = _path ? get(state, ['ContainerReducer', cname, _instance].concat(_path)) : get(state, ['ContainerReducer', cname, _instance]);
+        }
+      } else {
+        container_props = get(state, ['ContainerReducer', cname]);
+      }
+      
+      if (container_props !== undefined) {
+        return {
+          _congot: true,
+          _path: full_path,
+          _instance,
+          container_props
+        };
+      } else {
+        return {
+          _congot: false,
+          _path:full_path,
+          _instance
+        }
       }
     }
 
-    const original = stripUndefined(mapStateToProps(state, own_props, function() {}));
-    const original_with_conget = stripUndefined(mapStateToProps(state, own_props, conget));
+    const original = mapStateToProps(state, own_props, conget);
+
+    const congot = {};
+    let congot_failed = false;
+
+    Object.keys(original).forEach(key => {
+      const obj = original[key];
+      if (typeof obj._congot === 'boolean') {
+        if (obj._congot === true) {
+          congot[key] = obj;
+        } else if (obj._congot === false) {
+          congot_failed = true;
+        }
+        delete original[key];
+      }
+    });
 
     const {instance} = own_props;
     const props = get(state, ['ContainerReducer', RawComponent.name, instance]) || original;
@@ -135,7 +195,8 @@ function wrapMapStateToProps(mapStateToProps, RawComponent) {
       key: instance,
       original,
       RawComponent,
-      ...original_with_conget,
+      _congot_failed: congot_failed,
+      _congot: congot,
       ...props,
     }
   }
@@ -189,16 +250,40 @@ class Wrapper extends Component {
   }
 
   shouldComponentUpdate(nextProps, nextState) {
-    return !isEqual(nextProps, this.props);
+    const {instance, _congot, ...curr_props} = this.props;
+    const {instance: _, _congot: _next_congot, ...next_props} = nextProps;
+
+    const congot_equal = Object.keys(_next_congot).every(key => {
+      if (_congot[key] !== undefined) {
+        return isEqual(_congot[key], _next_congot[key]);
+      } else {
+        return false;
+      }
+    });
+
+    return !isEqual(curr_props, next_props) || !congot_equal;
   }
 
   render() {
-    const {instance, RawComponent, init: _0, original: _1, act, ...props} = this.props;
+    const {instance, RawComponent, init: _0, original: _1, _congot, _congot_failed, act, ...props} = this.props;
+    
+    console.log("render:", `${RawComponent.name}.${instance}`);
+
     if (!instance) {
       console.error("instance prop was not passed into", RawComponent.name);
       return null;
     }
-    return <RawComponent instance={instance} {...act} {...props} />;
+
+    if (_congot_failed === true) {
+      return null;
+    }
+
+    const congot = {};
+    Object.keys(_congot).forEach(key => {
+      congot[key] = _congot[key].container_props;
+    })
+
+    return <RawComponent instance={instance} {...act} {...props} {...congot} />;
   }
 }
 

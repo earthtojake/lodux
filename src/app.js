@@ -6,13 +6,12 @@ class App extends Component {
 
   render() {
     const {data} = this.props;
+
     return (
       <div>
-        <h1>Todos</h1>
-        <Todo instance="shopping_list" items={['apples', 'pears', 'oranges']}/>
-        <Todo instance="homework" items={['math', 'physics', 'chemistry']}/>
-        <h1>Summary</h1>
-        <Progress instance="todo_progress" />
+        <Progress instance="progress" />
+        <Todo instance="homework" items={['math', 'physics', 'english']}/>
+        <Todo instance="groceries" items={['apple', 'orange', 'mango']} />
       </div>
     );
   }

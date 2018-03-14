@@ -104,15 +104,15 @@ const ContainerReducer = function(state = {}, action) {
   }
 }
 
-function mapStateToProps(RawComponent) {
+function wrapMapStateToProps(mapStateToProps, RawComponent) {
 
-  return (state, own_props) => {
+  const wrappedMapStateToProps = (state, own_props) => {
 
     let ref_count = 0;
 
     const conget = (_container, _instance, _path) => {
 
-      const cname = _container.container;
+      const cname = _container.cname || _container.name;
 
       const ref = {
         _ref: true,
@@ -127,8 +127,7 @@ function mapStateToProps(RawComponent) {
 
     }
 
-    const injectProps = RawComponent.injectProps.bind({props: own_props});
-    const original = injectProps(state, conget);
+    const original = mapStateToProps(state, own_props, conget);
 
     // find ref paths
     const refs = [];
@@ -141,7 +140,7 @@ function mapStateToProps(RawComponent) {
         let container_props;
         if (_instance) {
           if (_instance === "*") {
-            container_props = get(state, ['ContainerReducer', _container], []);
+            container_props = get(state, ['Container', _container], []);
             if (_path) {
               container_props = Object.keys(container_props).reduce((con_props, _inst) => {
                 const res = get(container_props[_inst], _path, null);
@@ -159,8 +158,8 @@ function mapStateToProps(RawComponent) {
             _instance.forEach(_inst => {
               container_props[_inst] = 
                 _path
-                ? get(state, ['ContainerReducer', _container, _inst].concat(_path), null)
-                : get(state, ['ContainerReducer', cname, _inst], null);
+                ? get(state, ['Container', _container, _inst].concat(_path), null)
+                : get(state, ['Container', cname, _inst], null);
               if (container_props[_inst] === undefined) {
                 console.error(`${_container}.${_inst} is not defined`);
               }
@@ -168,11 +167,11 @@ function mapStateToProps(RawComponent) {
           } else {
             container_props = 
               _path
-              ? get(state, ['ContainerReducer', _container, _instance].concat(_path), null)
-              : get(state, ['ContainerReducer', cname, _instance], null);
+              ? get(state, ['Container', _container, _instance].concat(_path), null)
+              : get(state, ['Container', cname, _instance], null);
           }
         } else {
-          container_props = get(state, ['ContainerReducer', _container], []);
+          container_props = get(state, ['Container', _container], []);
         }
 
         // check for chained references
@@ -205,12 +204,13 @@ function mapStateToProps(RawComponent) {
         });
       }
 
+      // console.log("findPaths:", own_props.instance);
       findPaths(original);
 
     }
 
     const {instance} = own_props;
-    const props = get(state, ['ContainerReducer', RawComponent.name, instance]) || original;
+    const props = get(state, ['Container', RawComponent.name, instance]) || original;
 
     return {
       key: instance,
@@ -221,11 +221,13 @@ function mapStateToProps(RawComponent) {
       _missing_refs: missing_refs,
       ...props,
     }
-  };
+  }
+
+  return wrappedMapStateToProps;
 
 }
 
-function mapDispatchToProps(RawComponent) {
+function wrapMapDispatchToProps(mapActToProps, RawComponent) {
   return (dispatch, own_props) => {
 
     const {instance} = own_props;
@@ -238,8 +240,8 @@ function mapDispatchToProps(RawComponent) {
       dispatch(updateOne(wrapped_def));
     }
 
-    const contact = (container, other_key, action_def) => {
-      const cname = container.container;
+    const contact = (other_container, other_key, action_def) => {
+      const cname = other_container.cname || other_container.name;
       if (other_key === "*") {
         const wrapped_def = {container: cname, update: action_def};
         dispatch(updateAll(wrapped_def));
@@ -252,19 +254,13 @@ function mapDispatchToProps(RawComponent) {
       }
     }
 
-    const actors = RawComponent.act;
-    const actors_with_dispatch = Object.keys(actors).reduce((obj, key) => {
-      obj[key] = (...args) => act(actors[key](...args));
-      obj[key].container = container_name;
-      return obj;
-    }, {});
-    
+    const actors = mapActToProps(own_props, act, contact);
+
     return {
       init: (_data) => {
         dispatch(initData(container_name, key, _data));
       },
-      contact: (_container, _action_def, _key) => contact(_container, _action_def, _key),
-      act: actors_with_dispatch
+      act: actors
     }
 
   }
@@ -321,45 +317,29 @@ class Wrapper extends Component {
     }
 
     const props_with_refs = _refs.reduce((_props, _ref) => {
+      // console.log("inject", _ref.path);
       return update(
         _props,
         setPathObj(_ref.path, _ref.props)
       )
     }, props);
 
-    console.log("render:", `${RawComponent.name}.${instance}`);
+    // console.log("render:", `${RawComponent.name}.${instance}`);
     return <RawComponent instance={instance} {...act} {...props_with_refs} />;
   }
 }
 
-function conduct(RawComponent) {
-  return function() {
-    const wrappedMapStateToProps = mapStateToProps(RawComponent);
-    const wrappedMapDispatchToProps = mapDispatchToProps(RawComponent);
+function conduct(mapStateToProps, mapActToProps) {
+  return function(RawComponent) {
+    const wrappedMapStateToProps = wrapMapStateToProps(mapStateToProps, RawComponent);
+    const wrappedMapDispatchToProps = wrapDispatchToProps(mapActToProps, RawComponent);
     const WrappedComponent = connect(wrappedMapStateToProps, wrappedMapDispatchToProps)(Wrapper);
-    WrappedComponent.cname = RawComponent.name;
-    Object.assign(WrappedComponent, { act: RawComponent.act, container:  RawComponent.name})
+    WrappedComponent.cname = RawComponent;
     return WrappedComponent;
   }
 }
 
-
-class Container extends Component {
-
-  static act = null
-
-  static injectProps = () => {
-    console.error("inject props is not defined");
-    if (this.constructor.act === null) {
-      console.error("actions are not defined");
-    }
-  }
-
-}
-
-
 module.exports = {
   conduct,
-  ContainerReducer,
-  Container,
+  Container: ContainerReducer
 };

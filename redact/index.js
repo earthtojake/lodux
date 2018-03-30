@@ -29,12 +29,13 @@ const updateMany = (action) => {
   }
 }
 
-const initData = (container, key, data) => {
+const initData = (container, key, data, refs) => {
   return {
     type: INIT,
     container,
     key,
-    data
+    data,
+    refs
   }
 }
 
@@ -95,6 +96,9 @@ const ContainerReducer = function(state = {}, action) {
       return {
         ...state,
         [action.container]: {
+          _refs: {
+            ...action.refs,
+          },
           ...state[action.container],
           [action.key]: action.data,
         }
@@ -260,8 +264,8 @@ function mapDispatchToProps(RawComponent) {
     }, {});
     
     return {
-      init: (_data) => {
-        dispatch(initData(container_name, key, _data));
+      init: (_data, _refs) => {
+        dispatch(initData(container_name, key, _data, _refs));
       },
       contact: (_container, _action_def, _key) => contact(_container, _action_def, _key),
       act: actors_with_dispatch
@@ -290,8 +294,8 @@ class Wrapper extends Component {
 
   constructor(props) {
     super(props);
-    const {init, instance, original} = this.props;
-    init(original);
+    const {init, _refs = [], instance, original} = this.props;
+    init(original, _refs);
   }
 
   shouldComponentUpdate(nextProps, nextState) {

@@ -10,10 +10,10 @@ class Progress extends Component {
     })
   }
 
-  static injectProps(store, conget) {
+  static injectProps(store, inject) {
     return {
-      num_items: conget( Todo, '*', 'items.length' ),
-      titles: conget( Todo, '*', 'title'),
+      num_items: inject( Todo, '*', 'items.length' ),
+      titles: inject( Todo, '*', 'title'),
       status: ""
     };
   }
